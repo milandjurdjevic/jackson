@@ -42,8 +42,6 @@ module internal Parser =
             | JsonValueKind.Null -> null
             | _ -> invalidOp $"Unknown value kind: {value.ToString()}."
 
-        // BUG: StackOverflowException
-        // Convert function to tail-recursive, so it can handle large JSON files.
         let rec dynamic (node: JsonNode) =
             match node with
             | :? JsonValue as value -> toObj value
