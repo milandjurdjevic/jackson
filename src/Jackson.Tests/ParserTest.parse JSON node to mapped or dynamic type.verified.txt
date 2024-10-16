@@ -1,0 +1,26 @@
+﻿[
+  {
+    Id: Type1
+  },
+  {
+    Id: Type2
+  },
+  {
+    Id: Type1
+  },
+  {
+    Id: Type2
+  },
+  {
+    f1: dynamic,
+    f2: [
+      1,
+      2,
+      3
+    ],
+    f3: {
+      f1: type,
+      f2: 1
+    }
+  }
+]
