@@ -15,8 +15,8 @@ BenchmarkRunner.Run<ParserBenchmark>();
 [SuppressMessage("Design", "CA1050:Declare types in namespaces")]
 public class ParserBenchmark
 {
-    private readonly IParser _parser = JsonSerializerOptions.Default
-        .CreateParserBuilder("Type")
+    private readonly IParser _parser = 
+        ParserBuilder.Create(JsonSerializerOptions.Default, "Type")
         .Map<Circle>("circle")
         .Map<Line>("line")
         .Map<Triangle>("triangle")
