@@ -16,13 +16,13 @@ jobs:
       - name: Setup
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 9.0.x
       - name: Restore
-        run: dotnet restore src
+        run: dotnet restore
       - name: Build
-        run: dotnet build src --no-restore
+        run: dotnet build --no-restore
       - name: Test
-        run: dotnet test src --no-build --verbosity normal
+        run: dotnet test --no-build --verbosity normal
   
   publish:
     needs: build
@@ -33,9 +33,9 @@ jobs:
       - name: Setup
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 9.0.x
       - name: Pack
-        run: dotnet pack src/Jackson --configuration Release --output ${{ github.workspace }}/.nuget
+        run: dotnet pack src --configuration Release --output ${{ github.workspace }}/.nuget
       - name: Push
         run: dotnet nuget push ${{ github.workspace }}/.nuget/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
       - name: Release
