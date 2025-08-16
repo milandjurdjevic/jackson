@@ -43,12 +43,12 @@ var json =
     ]
     """;
 
-var parser = ParserBuilder
+var parser = Parser
     .Create(JsonSerializerOptions.Default, "f1", "f2")
     .Map<Type1>("type", "1")
     .Map<Type2>("type", "2")
     .Or(
-        ParserBuilder
+        Parser
             .Create(JsonSerializerOptions.Default, "f1", "f2")
             .Map<Type1>("1", "type")
             .Map<Type2>("2", "type")
