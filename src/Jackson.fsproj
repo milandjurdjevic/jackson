@@ -20,7 +20,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Compile Include="Jackson.fs" />
+        <Compile Include="Parser.fs"/>
     </ItemGroup>
 
     <ItemGroup>
