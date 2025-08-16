@@ -33,55 +33,82 @@ module internal Parser =
         | unsupported -> failwith $"Unsupported node type '{unsupported.GetType().Name}'."
 
     let unstructured: IParser =
-        let rec parse =
-            function
-            | Object obj -> obj |> Seq.map (fun node -> node.Key, parse node.Value) |> readOnlyDict |> box
-            | Array arr -> arr |> Seq.map parse |> Seq.toArray |> box
-            | Int num -> box num
-            | Double num -> box num
-            | String str -> box str
-            | Boolean bool -> box bool
-            | Null -> null
+        let rec parse (node: JsonNode) (cps: obj -> obj) : obj =
+            match node with
+            | Object obj ->
+                let enumerator = obj.GetEnumerator()
 
-        create parse
+                let rec loop (acc: (string * obj) list) : obj =
+                    if enumerator.MoveNext() then
+                        let current = enumerator.Current
+                        parse current.Value (fun v -> loop ((current.Key, v) :: acc))
+                    else
+                        acc |> List.rev |> readOnlyDict |> box |> cps
+
+                loop []
+            | Array arr ->
+                let enumerator = arr.GetEnumerator()
+
+                let rec loop (acc: obj list) : obj =
+                    if enumerator.MoveNext() then
+                        parse enumerator.Current (fun v -> loop (v :: acc))
+                    else
+                        acc |> List.rev |> List.toArray |> box |> cps
+
+                loop []
+            | Int num -> cps (box num)
+            | Double num -> cps (box num)
+            | String str -> cps (box str)
+            | Boolean bool -> cps (box bool)
+            | Null -> cps null
+
+        create (fun n -> parse n id)
 
     let structured (keys: string array) (map: Map<string, Type>) (opt: JsonSerializerOptions) (nxt: IParser) : IParser =
-        let rec parse =
-            function
+        let rec parse (json: JsonNode) (cps: obj -> obj) : obj =
+            match json with
             | Object obj ->
-                keys
-                |> Seq.map (fun key ->
-                    obj
-                    |> Seq.tryFind _.Key.Equals(key, StringComparison.OrdinalIgnoreCase)
-                    |> Option.map _.Value.ToString())
-                |> Seq.choose id
-                |> String.concat String.Empty
-                |> map.TryFind
-                |> Option.map (fun t -> obj.Deserialize(t, opt))
-                |> Option.defaultValue (nxt.Parse obj)
-            | Array arr -> arr |> Seq.map parse |> Seq.toArray |> box
-            | Int num -> box num
-            | Double num -> box num
-            | String str -> box str
-            | Boolean bool -> box bool
-            | Null -> null
+                let keyStr =
+                    keys
+                    |> Seq.map (fun key ->
+                        obj
+                        |> Seq.tryFind _.Key.Equals(key, StringComparison.OrdinalIgnoreCase)
+                        |> Option.map _.Value.ToString())
+                    |> Seq.choose id
+                    |> String.concat String.Empty
 
-        create parse
+                match map.TryFind keyStr with
+                | Some t -> obj.Deserialize(t, opt) |> cps
+                | None -> nxt.Parse obj |> cps
+            | Array arr ->
+                let enumerator = arr.GetEnumerator()
 
+                let rec loop (acc: obj list) : obj =
+                    if enumerator.MoveNext() then
+                        parse enumerator.Current (fun v -> loop (v :: acc))
+                    else
+                        acc |> List.rev |> List.toArray |> box |> cps
 
-type Parser
-    private (keys: string array, map: Map<string, Type>, serializer: JsonSerializerOptions, next: IParser option) =
+                loop []
+            | Int num -> cps (box num)
+            | Double num -> cps (box num)
+            | String str -> cps (box str)
+            | Boolean bool -> cps (box bool)
+            | Null -> cps null
+
+        create (fun node -> parse node id)
+
+type Parser private (keys: string array, map: Map<string, Type>, opt: JsonSerializerOptions, next: IParser option) =
 
     static member Create(options, [<ParamArray>] keys: string array) = Parser(keys, Map.empty, options, None)
 
     member _.Map<'T>([<ParamArray>] values: string array) =
-        Parser(keys, map.Add((String.Join(String.Empty, values), typeof<'T>)), serializer, next)
+        Parser(keys, map.Add((String.Join(String.Empty, values), typeof<'T>)), opt, next)
 
-    member _.Chain(next: IParser) =
-        Parser(keys, map, serializer, Some next)
+    member _.Chain(next: IParser) = Parser(keys, map, opt, Some next)
 
     member _.Build() : IParser =
         let next =
             next |> Option.map _.Parse |> Option.defaultValue Parser.unstructured.Parse
 
-        Parser.structured keys map serializer (Parser.create next)
+        Parser.structured keys map opt (Parser.create next)
